@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+{% autoescape true %}
+<html>
+	<head>
+		<title>QuickSeq v0.9</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link href="/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+
+		<script src="http://code.jquery.com/jquery-1.10.0.min.js"></script>
+		<script src="http://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
+
+		<script>
+			$(document).ready(function() {
+				var $spinner = $('#spinner');
+
+				// hide optional params by default
+				$('#optional-params').addClass('hidden');
+
+				// toggle optional params
+				$('#optional-params-head').click(function(e) {
+					$('#optional-params').toggleClass('hidden');
+					//$('#optional-params').toggle();
+					e.preventDefault();
+					return false;
+				});
+
+				// load genome
+				$('#load-genome-btn').click(function(event){
+
+					var genome = $('#genome-select option:selected').val();
+
+					if (genome == "_custom_") {
+						event.preventDefault();
+						return;
+					}
+
+					$.ajax({
+						url: '/autocomplete?genome='+genome,
+						type: 'GET',
+						beforeSend: function() {
+							$spinner.show();
+						},
+						complete: function() {
+							$spinner.hide();
+						},
+						success: function(data) {
+							var autocomplete = JSON.parse(data);
+							// console.log(data);
+							// console.log(autocomplete);
+
+							$('#gene_name').typeahead({
+								// source: ['aaa','bbbb'],
+								source: autocomplete,
+								minLength: 1, // The minimum character length needed before triggering autocomplete suggestions
+								items: 5, // The max number of items to display in the dropdown.
+							})
+							.attr('disabled', false);
+						},
+						error: function() {
+							alert('Failed to load genome');
+						}
+					});
+
+
+					event.preventDefault();
+					return false;
+				}).trigger('click');
+
+				// custom genome
+				$('#genome-select').focusout(function(e){
+					var genome = $('#genome-select option:selected').val();
+
+					if (genome == "_custom_") {
+						$('#upload-file').trigger('click');
+					} else {
+						//$('#genome-custom').fadeOut();
+					}
+				}).trigger('change');
+
+				// custom type2s_site
+				$('#type2s_site-select').change(function(e){
+					var selected = $('#type2s_site-select option:selected').val();
+					console.log(selected);
+					if (selected == "_custom_") {
+						$('#type2s-custom').fadeIn();
+					} else {
+						$('#type2s-custom').fadeOut();
+					}
+				}).trigger('change');
+
+
+				// custom blunt_site
+				$('#blunt_site-select').change(function(e){
+					var selected = $('#blunt_site-select option:selected').val();
+					console.log(selected);
+					if (selected == "_custom_") {
+						$('#blunt-custom').fadeIn();
+					} else {
+						$('#blunt-custom').fadeOut();
+					}
+				}).trigger('change');
+
+				// submit form
+				$('#form').submit(function(e){
+
+					// grab the form data
+					var data = {};
+					$.each($('#form').serializeArray(), function(_, kv) {
+					  data[kv.name] = kv.value;
+					});
+					console.log(data)
+
+					// got genename?
+					if (data['gene_name'] === undefined || data['gene_name'].length < 3) {
+						alert("Please enter a valid gene name (min 3 letters)");
+						return false;
+					}
+
+					// got type2s?
+					if (data['type2s_site'] == '_custom_'
+						&& (!data['type2s_custom_name'] || !data['type2s_custom_seq'])) {
+
+						alert("Please enter a valid Type IIs Restriction Enzyme");
+						return false;
+					}
+
+					// got blunt?
+					if (data['blunt_site'] == '_custom_'
+						&& (!data['blunt_custom_name'] || !data['blunt_custom_seq'])) {
+
+						alert("Please enter a valid Blunt End Restriction Enzyme");
+						return false;
+					}
+
+					if (data['formaction'] == 'save-ust' || data['formaction'] == 'save-dst' || data['formaction'] == 'save-zip') {
+						return true;
+					}
+
+					// do not send the form for real. we use ajax for that.
+					e.preventDefault();
+
+					// fancy form post
+					$.ajax({
+						url: "/submit",
+						data: data,
+						type: 'POST',
+						dataType: "text",
+						beforeSend: function() {
+							$spinner.show();
+						},
+						complete: function() {
+							$spinner.hide();
+						},
+						// incoming data
+						success: function(data) {
+							// show result
+							$('#form-result').html($('<pre>').html(data));
+						},
+						error: function() {
+							alert("Sorry, something went wrong here.\nPlease check your input and try again.")
+						}
+					});
+
+					return false;
+				});
+
+				// submit form button
+				$('#submit-form').click(function(e){
+					e.preventDefault();
+					$('#form-action').val('');
+					$('#form').submit();
+					return false;
+				});
+
+				// save upstream
+				$('#save-upstream').click(function(e){
+					e.preventDefault();
+					$('#form-action').val('save-ust');
+					$('#form').submit();
+					return false;
+				});
+
+				// save downstream
+				$('#save-downstream').click(function(e){
+					e.preventDefault();
+					$('#form-action').val('save-dst');
+					$('#form').submit();
+					return false;
+				});
+
+				// save zip
+				$('#save-zip').click(function(e){
+					e.preventDefault();
+					$('#form-action').val('save-zip');
+					$('#form').submit();
+					return false;
+				});
+
+			});
+		</script>
+
+		<style>
+			.hidden {
+				display: none;
+			}
+
+			#spinner {
+				position: absolute;
+				top: 5px;
+				left: 5px;
+				display: none;
+				padding: 5px;
+			}
+
+			#optional-params-head:HOVER {
+				cursor: pointer;
+			}
+
+		</style>
+	</head>
+	<body>
+	<div class="container">
+		<h1>Welcome to QuickSeq!</h1>
+		<p>
+		To generate targeting sequences for seamless gene deletion cassettes,
+		enter the name(s) of individual genes (e.g. lacI, luxR) or
+		operons (araBAD, LacXYZ) separated by commas.
+		</p>
+
+		<!-- CUSTOM GENOME UPLOAD FORM
+		<form action="{{ upload_url }}" method="post" id="upload-form" enctype="multipart/form-data">
+			<label for="custom_genome_name">Local Genome File: </label>
+			<input type="file" name="custom_genome_name" id="upload-file"><br>
+			<input type="submit" value="Upload" />
+	    </form> -->
+
+		<!-- MAIN FORM-->
+	   <form action="/submit" method="post" id="form">
+		<input type="hidden" id="form-action" name="formaction" value="view" />
+
+		<fieldset>
+
+			<legend>Generate Homology Sequences</legend>
+
+			<label for="genome">Genome: </label>
+			<select name="genome" id="genome-select">
+				{% for genomekey, genomevalue in genomes.iteritems() %}
+				<option value="{{ genomekey }}" >{{ genomevalue }}</option>
+				{% endfor %}
+
+				{% if custom_genome_key != None %}
+				<option value="custom:{{ custom_genome_key }}" selected>Custom Genome</option>
+				{% else %}
+				<option value="_custom_">Custom Genome</option>
+				{% endif %}
+			</select><br />
+
+			<button id="load-genome-btn" class="btn btn-warning">Load genome</button><br><br>
+
+
+			<label for="gene_name">Gene name: </label>
+			<input type="text" autocomplete="off" id="gene_name" name="gene_name" placeholder="(e.g. araBAD, lacZ...)" value="" disabled>
+
+
+			<label for="type2s_site">Type IIs Restriction Enzyme: </label>
+			<select name="type2s_site" id="type2s_site-select">
+				{% for type2skey, type2svalue in type2s.iteritems() %}
+				<option value="{{ type2skey }}"> {{type2skey}} ({{ type2svalue }})</option>
+				{% endfor %}
+				<option value="_custom_">Custom ...</option>
+			</select>
+			<div id="type2s-custom" class="hidden">
+				<label for="type2s_custom_name">Type IIs Custom name: </label>
+				<input type="text" name="type2s_custom_name" placeholder="e.g. AarI" />
+				<label for="type2s_custom_seq">Type IIs Custom Sequence: </label>
+				<input type="text" name="type2s_custom_seq" placeholder="e.g. CACCTGC" /><br><br>
+			</div>
+
+			<label for="blunt_site">Blunt End Restriction Enzyme: </label>
+			<select name="blunt_site" id="blunt_site-select">
+				{% for bluntkey, bluntvalue in blunts.iteritems() %}
+				<option value="{{ bluntkey }}"> {{bluntkey}} ({{ bluntvalue }})</option>
+				{% endfor %}
+				<option value="_custom_">Custom ...</option>
+			</select>
+			<div id="blunt-custom" class="hidden">
+				<label for="blunt_custom_name">Blunt Custom name: </label>
+				<input type="text" name="blunt_custom_name" placeholder="e.g. SmaI"/>
+				<label for="blunt_custom_seq">Blunt Custom Sequence: </label>
+				<input type="text" name="blunt_custom_seq" placeholder="e.g. CCCGGG" />
+			</div>
+
+		</fieldset>
+
+		<fieldset style="margin-top: 20px;">
+
+			<legend id="optional-params-head" style="font-size:16px">Optional Parameters (click to view):</legend>
+
+			<div id="optional-params">
+				<label>Optimal upstream / downstream sequence length:</label>
+				<input type="text" name="opt_ust" value="500">
+				<input type="text" name="opt_dst" value="500">
+
+				<label>Maximum upstream / downstream sequence length:</label>
+				<input type="text" name="max_ust" value="1000">
+				<input type="text" name="max_dst" value="1000">
+
+				<label>Minimum upstream / downstream sequence length:</label>
+				<input type="text" name="min_ust" value="50">
+				<input type="text" name="min_dst" value="50">
+			</div>
+		</fieldset>
+
+		<div>
+			<input type="submit" id="submit-form" value="View Genbank file" class="btn btn-primary">
+			<button class="btn" id="save-upstream">Save Upstream file</button>
+			<button class="btn" id="save-downstream">Save Downstream file</button>
+			<button class="btn" id="save-zip">Save zip file</button>
+		</div>
+
+		</form>
+
+		<!-- RESULTS -->
+		<div id="form-result"></div>
+
+	</div>
+
+	<!-- LOADING -->
+	<div id="spinner"><img src="/assets/loading.gif"></div>
+
+	<script src="/bootstrap/js/bootstrap.min.js"></script>
+	</body>
+</html>
+{% endautoescape %}
