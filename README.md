@@ -8,4 +8,4 @@ The front-end is written in python and uses webapp2 and Jinja2 to pass values fr
 
 The back-end is written in python and represented as a class called Genescript. Genomes and DNA sequences are parsed and manipulated using the Biopython library. Output is generated via StringIO and zipfile.
 
-An instance of the current version of QuickSeq is hosted at quickseq0.appspot.com 
+An instance of the current QuickSeq v0.9 is hosted at quickseq0.appspot.com 
